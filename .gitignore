@@ -1,6 +1,6 @@
 export/
-input/
-!input/demo
+input/*
+!input/demo/
 build/
 cmake-build-debug/
 cmake-build-release/
