@@ -26,8 +26,8 @@ It supports multiple Command Line Options.
 ### Necessary Command Line Options
 1. `-d`: specify the `dataset_name`. The code expects it to be located within the directory `input/dataset_name` as two shapefiles `dataset_name_1.shp`and `dataset_name_2.shp`.
 2. Specify the value of $\lambda \in [0,1]$ used in the objective $f(\mu) = \mathrm{IoU}(\mu) - \lambda$ 
-    a. `-l`: allows to specify one value for lambda
-    b. `-lr`: allows to specify a range of multiple lambda values `start stepsize end`
+    - `-l`: allows to specify one value for lambda
+    - `-lr`: allows to specify a range of multiple lambda values `start stepsize end`
 
 ### Optional Command Line Options
 1. `-s`: activates exploit of properties of optimal solutions in preprocessing, **recommended**.
@@ -38,9 +38,9 @@ It supports multiple Command Line Options.
 
 ## Input Data
 For our experiments, we used input data from the following sources:
-https://download.geofabrik.de/ for OSM data
-https://www.opengeodata.nrw.de/produkte/geobasis/lk/akt/gru_xml/ for cadastral data
-https://github.com/microsoft/GlobalMLBuildingFootprints for AI generated building footprints
+- https://download.geofabrik.de/ for OSM data
+- https://www.opengeodata.nrw.de/produkte/geobasis/lk/akt/gru_xml/ for cadastral data
+- https://github.com/microsoft/GlobalMLBuildingFootprints for AI generated building footprints
 
 ## Further remarks
 Note that the code requires shapefiles as inputs. Downloaded data in other formats needs to be converted.
