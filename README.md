@@ -43,7 +43,7 @@ For our experiments, we used input data from the following sources:
 - https://github.com/microsoft/GlobalMLBuildingFootprints for AI generated building footprints
 
 ## Further remarks
-Note that the code requires shapefiles as inputs. Downloaded data in other formats needs to be converted.
+Note that the code requires shapefiles containing **single** polygons as inputs. Multipolygons are not supported. Downloaded data in other formats needs to be converted.
 We recommend to use GIS-Tools to repair invalid geometries before using this code, as those might lead to instabilities.
 The code can be provided a third dataset `input/dataset_name/dataset_name_merged.shp`. This is used to parallelize the decomposition of the input polygons into connected components. 
 It should contain the dissolved union of both input datasets. If not provided, the code will initially compute this union itself. Note that due to invalid geometries, this
