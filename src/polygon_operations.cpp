@@ -2,26 +2,6 @@
 
 namespace PolygonOperations {
 
-    void buffer_holes(Polygon_wh& p, double epsilon) {
-        for(auto& hole : p.holes()) buffer(hole,epsilon);
-    }
-
-    void buffer(Polygon& p, double epsilon) {
-        //get centroid of polygon
-        Point centroid = CGAL::centroid(p.vertices_begin(),p.vertices_end());
-
-        Polygon buffered;
-        //get shortened vectors to each point of the polygon
-        for(const auto& v : p.vertices()) {
-            Vector vec(centroid, v);
-
-            Vector shift = epsilon * (normalize(vec));
-            Point v_shifted = v + shift;
-            buffered.push_back(v_shifted);
-        }
-        p=buffered;
-    }
-
     Polygon fixIfNotSimple(Polygon& p) {
         Polygon p_return = p;
         if(!p.is_simple()) {

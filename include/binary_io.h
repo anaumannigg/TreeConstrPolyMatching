@@ -3,6 +3,8 @@
 #define TCPOLYGONMATCHING_BINARY_IO_H
 
 #include "cgal_includes.h"
+#include "polygon_wh.h"
+#include "solution.h"
 
 void writePolysToBinaryFile(const std::vector<Polygon_wh>& polys1, const std::vector<Polygon_wh>& polys2 , const std::string& file_path, size_t set_id);
 
@@ -33,5 +35,13 @@ private:
 };
 
 //END CLASS
+
+void writeIntVecToBinaryFile(std::ofstream& out, const std::vector<int>& vec);
+void writeDoubleVecToBinaryFile(std::ofstream& out, const std::vector<double>& vec);
+void writeSolutionToBinaryFile(std::ofstream& out, const Solution& sol);
+
+std::vector<int> readIntVecFromBinaryFile(std::ifstream& in);
+std::vector<double> readDoubleVecFromBinaryFile(std::ifstream& in);
+Solution readSolutionFromBinaryFile(std::ifstream& in);
 
 #endif //TCPOLYGONMATCHING_BINARY_IO_H

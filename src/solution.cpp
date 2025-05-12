@@ -118,19 +118,21 @@ void Solution::addMatch(std::vector<int> set1, std::vector<int> set2, double mat
 }
 
 void Solution::insert(Solution sol) {
-	auto sol_matching = sol.getMatching();
+	//if the solution to insert has references, we want to use the references as then we are
+	//building a global solution from local solutions
+
+	auto& matching_ids = sol.has_references ? sol.matching_references : sol.matching;
 
 	//for each match in the argument, add the match to the solution instance
-	int i = 0;
-	for (const auto& m : sol_matching) {
-		std::vector<int> set1 = m.first;
-		std::vector<int> set2 = m.second;
-		this->addMatch(set1, set2, sol.getMatchWeights(0)[set1[0]]);
+	for (int i=0; i< matching_ids.size(); i++){
+		std::vector<int> set1 = matching_ids[i].first;
+		std::vector<int> set2 = matching_ids[i].second;
+		this->addMatch(set1, set2, sol.getMatchWeights(0)[sol.matching[i].first[0]]);
 	}
 
 }
 
-void Solution::insert(Solution sol, std::vector<int> lookup1, std::vector<int> lookup2) {
+void Solution::insert(Solution sol, const std::vector<int>& lookup1, const std::vector<int>& lookup2) {
 	auto sol_matching = sol.getMatching();
 
 	//for each match in the argument, add the match to the solution instance
@@ -163,6 +165,23 @@ void Solution::completeMatching() {
 	this->match_ids.first = match_id;
 }
 
+void Solution::setReferences(const std::vector<Polygon_wh>& polys1, const std::vector<Polygon_wh>& polys2) {
+	this->has_references = true;
+
+	for (const auto& match : this->matching) {
+		std::vector<int> poly_refs1,poly_refs2;
+		for (const auto& p : match.first) {
+			if (polys1[p].global_id == -1) std::cerr << "WARNING: global id does not exist" << std::endl;
+			poly_refs1.push_back(polys1[p].global_id);
+		}
+		for (const auto& p : match.second) {
+			if (polys2[p].global_id == -1) std::cerr << "WARNING: global id does not exist" << std::endl;
+			poly_refs2.push_back(polys2[p].global_id);
+		}
+		this->matching_references.push_back(make_pair(poly_refs1, poly_refs2));
+	}
+}
+
 int Solution::getMatchCount() {
 	return this->match_count;
 }
@@ -184,6 +203,10 @@ std::vector<double> Solution::getMatchWeights(bool map) {
 
 std::vector < std::pair<std::vector<int>, std::vector<int>>> Solution::getMatching() {
 	return this->matching;
+}
+
+std::vector < std::pair<std::vector<int>, std::vector<int>>> Solution::getMatchingReferences() {
+	return this->matching_references;
 }
 
 double Solution::getTargetValue() {

@@ -2,12 +2,9 @@
 
 //LOCALIZATION CLASS
 
-Localization::Localization(std::vector<Polygon_wh> polys) {
+Localization::Localization(std::vector<Polygon_wh>& polys) : polys(polys) {
     //init r-tree
     this->rtree = bgi::rtree< Value_rtree, bgi::quadratic<16>>();
-
-    //init polygon and alpha threshold storage
-    this->polys = polys;
 
     for (int i = 0; i < polys.size(); i++) {
 
@@ -27,7 +24,7 @@ Localization::Localization(std::vector<Polygon_wh> polys) {
 
 //locates the input polygon p within the r-tree of the instance and writes neighbors into given vector
 //returns true if p has intersecting neighbors within the r tree, else false
-bool Localization::get_neighbors(Polygon_wh p, std::vector<Polygon_wh>* neighbors) const {
+bool Localization::get_neighbors(const Polygon_wh& p, std::vector<Polygon_wh>* neighbors) const {
     //compute bounding box of circular arc
     auto poly_bbox = p.bbox();
     Point_rtree ll = Point_rtree(poly_bbox.xmin(), poly_bbox.ymin());
@@ -40,7 +37,7 @@ bool Localization::get_neighbors(Polygon_wh p, std::vector<Polygon_wh>* neighbor
     for (const auto& b : query_result) {
         //remember every polygon 
         Polygon_wh query_poly = this->polys[b.second];
-        if (CGAL::do_intersect(query_poly, p)) {
+        if (query_poly.does_intersect(p)) {
             neighbors->push_back(query_poly);
         }
     }
@@ -51,71 +48,26 @@ bool Localization::get_neighbors(Polygon_wh p, std::vector<Polygon_wh>* neighbor
 
 //locates the input polygon p within the r-tree of the instance and writes neighbor indices into given vector
 //returns true if p has intersecting neighbors within the r tree, else false
-bool Localization::get_neighbors(Polygon_wh p, std::vector<int>* neighbors) const {
-    //buffer holes of input polygon right away to avoid redundant computations
-    std::vector<Polygon> p_holes_buffered;
-    for (const auto& hole : p.holes()) {
-        Polygon h_reverse = hole;
-        if (!h_reverse.is_counterclockwise_oriented()) h_reverse.reverse_orientation();
-        //make sure hole is valid and buffer inwards to avoid false intersections
-        PolygonOperations::buffer(h_reverse,-1e-1);
-        h_reverse = PolygonOperations::fixIfNotSimple(h_reverse);
-        p_holes_buffered.push_back(h_reverse);
-    }
-
+bool Localization::get_neighbors(const Polygon_wh& p, std::vector<int>* neighbors) const {
     //compute bounding box of input polygon
     auto poly_bbox = p.bbox();
     Point_rtree ll = Point_rtree(poly_bbox.xmin(), poly_bbox.ymin());
     Point_rtree ur = Point_rtree(poly_bbox.xmax(), poly_bbox.ymax());
     Box_rtree query_box = Box_rtree(ll, ur);
 
-    //buffer holes of input polygon inwards for stability (they might touch in single points
-    for (auto& h:p.holes()) PolygonOperations::buffer(h,-1e-1);
-
     //query r-tree
     std::vector<Value_rtree> query_result = this->query(query_box);
 
 
-    auto p_boundary = PolygonOperations::fixIfNotSimple(p.outer_boundary());
+    auto p_boundary = p.outer_boundary();
+
     for (const auto& b : query_result) {
         //remember every polygon
         Polygon_wh query_poly = this->polys[b.second];
 
         //fix query poly if necessary
-        auto query_boundary = PolygonOperations::fixIfNotSimple(query_poly.outer_boundary());
-        if (CGAL::do_intersect(query_boundary, p_boundary)) {
-            //one polygon could still lie within the other one, find the bigger one, as this has to be the one where the other one
-            //is included in
-            Polygon_wh* small_poly = &p, *big_poly = &query_poly;
-            if (query_boundary.area() < p_boundary.area()) {
-                small_poly = &query_poly;
-                big_poly = &p;
-            }
-
-            bool lies_in_hole = false;
-            //if p is the big polygon, we can use the prebuffered holes, else we need to buffer them
-            if (big_poly == &p) {
-                for (const auto& h : p_holes_buffered) {
-                    if (CGAL::do_intersect(h,*small_poly)) {
-                        lies_in_hole = true;
-                        break;
-                    }
-                }
-            }
-            else {
-                for(const auto& h : big_poly->holes()) {
-                    Polygon h_reverse = h;
-                    h_reverse.reverse_orientation();
-                    //make sure hole is valid and buffer inwards to avoid false intersections
-                    PolygonOperations::buffer(h_reverse,-1e-1);
-                    h_reverse = PolygonOperations::fixIfNotSimple(h_reverse);
-                    if(CGAL::do_intersect(h_reverse,*small_poly)) {
-                        lies_in_hole = true;
-                        break;
-                    }
-                }
-            }
-            if(!lies_in_hole) neighbors->push_back(b.second);
+        if (p.does_intersect(query_poly)) {
+            neighbors->push_back(b.second);
         }
     }
     //sort output vector
@@ -128,13 +80,12 @@ bool Localization::get_neighbors(Polygon_wh p, std::vector<int>* neighbors) cons
 }
 
 //overloads the get neighbors function for simple polygons, handles them as outer boundaries
-bool Localization::get_neighbors(Polygon p, std::vector<int>* neighbors) const {
+bool Localization::get_neighbors(const Polygon& p, std::vector<int>* neighbors) const {
     return get_neighbors(Polygon_wh(p), neighbors);
 }
 
-
 //locates the input point and writes intersected polygons into neighbors
-bool Localization::get_neighbors(Point p, std::vector<int>* neighbors, bool consider_holes) const {
+bool Localization::get_neighbors(const Point& p, std::vector<int>* neighbors, bool consider_holes) const {
     auto poly_bbox = p.bbox();
     //buffer bbox with some epsilon for stability
     double buffer = 1e-2;
@@ -176,7 +127,7 @@ bool Localization::get_neighbors(Point p, std::vector<int>* neighbors, bool cons
 
 //locates the input segment and writes intersected polygons into neighbors
 //returns true if p has intersecting neighbors, else false
-bool Localization::get_neighbors(Segment p, std::vector<int>* neighbors) const {
+bool Localization::get_neighbors(const Segment& p, std::vector<int>* neighbors) const {
     //if the segment represents a single point, return
     if (p.source() == p.target()) return this->get_neighbors(p.source(),neighbors);
 
@@ -222,9 +173,7 @@ bool Localization::get_neighbors(Segment p, std::vector<int>* neighbors) const {
         }
         //input segment is not an edge of the polygon, check for intersection
         else {
-            Polygon_set_2 query_poly_set;
-            query_poly_set.insert(query_poly);
-            if (!query_poly_set.do_intersect(p_poly)) {
+            if (!query_poly.does_intersect(p_poly)) {
                 neighbors->push_back(b.second);
             }
         }
@@ -238,7 +187,7 @@ bool Localization::get_neighbors(Segment p, std::vector<int>* neighbors) const {
 }
 
 //neighbors function with constraint: an intersecting polygon is only returned as a neighbor, iff union / smaller_poly_area is >= the argument threshold
-bool Localization::get_neighbors(Polygon_wh p, std::vector<int>* neighbors, double neighboring_threshold) const {
+bool Localization::get_neighbors(const Polygon_wh& p, std::vector<int>* neighbors, double neighboring_threshold) const {
     //compute bounding box of circular arc
     auto poly_bbox = p.bbox();
     Point_rtree ll = Point_rtree(poly_bbox.xmin(), poly_bbox.ymin());
@@ -253,18 +202,10 @@ bool Localization::get_neighbors(Polygon_wh p, std::vector<int>* neighbors, doub
         Polygon_wh query_poly = this->polys[b.second];
 
         
-        if (CGAL::do_intersect(query_poly, p)) {
+        if (query_poly.does_intersect(p)) {
             //polys do intersect,but further requirements have to be met
             //compute intersection area
-            std::list<Polygon_wh> inter;
-            CGAL::intersection(query_poly, p, std::back_inserter(inter));
-            double inter_area = 0.0;
-            for (const auto& inter_p : inter) {
-                inter_area += to_double(inter_p.outer_boundary().area());
-                for (const auto& hole : inter_p.holes()) {
-                    inter_area -= to_double(hole.area());
-                }
-            }
+            double inter_area = query_poly.intersection_area(p);
 
             //get smaller polygon area
             double smaller_poly_area = std::min(to_double(query_poly.outer_boundary().area()),
@@ -280,7 +221,7 @@ bool Localization::get_neighbors(Polygon_wh p, std::vector<int>* neighbors, doub
 }
 
 //neighbors function with constraint: an intersecting polygon is only returned as a neighbor, iff union / smaller_poly_area is >= the argument threshold, speedup via arrangement
-bool Localization::get_neighbors(Polygon_wh p, int p_index, bool p_map, std::vector<int>* neighbors, double neighboring_threshold, MapOverlay mo) const {
+bool Localization::get_neighbors(const Polygon_wh& p, int p_index, bool p_map, std::vector<int>* neighbors, double neighboring_threshold, MapOverlay mo) const {
     //compute bounding box of circular arc
     auto poly_bbox = p.bbox();
     Point_rtree ll = Point_rtree(poly_bbox.xmin(), poly_bbox.ymin());
@@ -297,7 +238,7 @@ bool Localization::get_neighbors(Polygon_wh p, int p_index, bool p_map, std::vec
         //remember every polygon 
         Polygon_wh query_poly = this->polys[b.second];
 
-        if (CGAL::do_intersect(p, query_poly)) {
+        if (p.does_intersect(query_poly)) {
 
             std::vector<int> indices1 = !p_map ? std::vector<int> {p_index} : std::vector<int> {(int)b.second};
             std::vector<int> indices2 = !p_map ? std::vector<int> {(int)b.second} : std::vector<int>{ p_index };
@@ -320,7 +261,7 @@ bool Localization::get_neighbors(Polygon_wh p, int p_index, bool p_map, std::vec
     else return false;
 }
 
-bool Localization::get_neighbors_fully_included(Polygon_wh p, std::vector<int>* neighbors) const {
+bool Localization::get_neighbors_fully_included(const Polygon_wh& p, std::vector<int>* neighbors) const {
     //compute bounding box of polygon
     auto poly_bbox = p.bbox();
     Point_rtree ll = Point_rtree(poly_bbox.xmin(), poly_bbox.ymin());
@@ -372,7 +313,7 @@ bool Localization::get_neighbors_fully_included(Polygon_wh p, std::vector<int>* 
     else return false;
 }
 
-bool Localization::get_neighbors_majorly_included(Polygon_wh p, std::vector<int>* neighbors, double inclusion_threshold) const {
+bool Localization::get_neighbors_majorly_included(const Polygon_wh& p, std::vector<int>* neighbors, double inclusion_threshold) const {
     //compute bounding box of circular arc
     auto poly_bbox = p.bbox();
     Point_rtree ll = Point_rtree(poly_bbox.xmin(), poly_bbox.ymin());
@@ -390,15 +331,7 @@ bool Localization::get_neighbors_majorly_included(Polygon_wh p, std::vector<int>
             //polygon has not been considered yet as neighbor
             
             //compute o_tilde for p and b
-            std::list<Polygon_wh> inter;
-            CGAL::intersection(query_poly, p, std::back_inserter(inter));
-            double inter_area = 0.0;
-            for (const auto& inter_p : inter) {
-                inter_area += to_double(inter_p.outer_boundary().area());
-                for (const auto& hole : inter_p.holes()) {
-                    inter_area -= to_double(hole.area());
-                }
-            }
+            double inter_area = query_poly.intersection_area(p);
 
             //get smaller polygon area
             double smaller_poly_area = std::min(to_double(query_poly.outer_boundary().area()),
@@ -416,7 +349,7 @@ bool Localization::get_neighbors_majorly_included(Polygon_wh p, std::vector<int>
     else return false;
 }
 
-bool Localization::get_neighbors_with_minimum_intersection_proportion(Polygon_wh p, std::vector<int>* neighbors, double inclusion_threshold) const {
+bool Localization::get_neighbors_with_minimum_intersection_proportion(const Polygon_wh& p, std::vector<int>* neighbors, double inclusion_threshold) const {
     //compute bounding box of circular arc
     auto poly_bbox = p.bbox();
     Point_rtree ll = Point_rtree(poly_bbox.xmin(), poly_bbox.ymin());
@@ -434,15 +367,7 @@ bool Localization::get_neighbors_with_minimum_intersection_proportion(Polygon_wh
             //polygon has not been considered yet as neighbor
 
             //compute o_tilde for p and b
-            std::list<Polygon_wh> inter;
-            CGAL::intersection(query_poly, p, std::back_inserter(inter));
-            double inter_area = 0.0;
-            for (const auto& inter_p : inter) {
-                inter_area += to_double(inter_p.outer_boundary().area());
-                for (const auto& hole : inter_p.holes()) {
-                    inter_area -= to_double(hole.area());
-                }
-            }
+            double inter_area = query_poly.intersection_area(p);
             //check if at last the necessary threshold of the query poly area is in the intersection
             if (inter_area / to_double(query_poly.outer_boundary().area()) > inclusion_threshold) neighbors->push_back(b.second);
 
@@ -456,13 +381,13 @@ bool Localization::get_neighbors_with_minimum_intersection_proportion(Polygon_wh
     else return false;
 }
 
-std::vector<Value_rtree> Localization::query(Box_rtree query_box) const {
+std::vector<Value_rtree> Localization::query(const Box_rtree& query_box) const {
     std::vector<Value_rtree> query_result;
     this->rtree.query(bgi::intersects(query_box),std::back_inserter(query_result));
     return query_result;
 }
 
-bool Localization::are_adjacent(Polygon_wh polyA, int polyB_index) const {
+bool Localization::are_adjacent(const Polygon_wh& polyA, int polyB_index) const {
     //get neighbors of poly A
     std::vector<int> neighbors;
     //note: here, different get_neighbors modes could be applied in order to adapt overlap checks

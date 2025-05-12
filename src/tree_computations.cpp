@@ -25,11 +25,23 @@ void TreeConstrainedCandidateGraph::delete_edge(int source, int target){
     remove_edge(target_vertex, source_vertex, this->g);
 }
 
-void TreeConstrainedCandidateGraph::computeBipartiteEdges(const MapOverlay& mo, double lambda) {
+void TreeConstrainedCandidateGraph::computeBipartiteWeightedEdges(const ObjectiveInfo& obj_info, const MapOverlay& mo, const std::vector<Polygon_wh>& polys1, const std::vector<Polygon_wh>& polys2) {
     //start out with left root
     //the function will fix a vertex in the left tree and scan through the right tree to find all vertices representing
     //intersecting polys
     assert(this->roots[0] != -1 && this->roots[1] != -1 && "could not compute bipartite edges due to invalid roots!");
+
+    //display warning if combined measure is set but polygons are not provided
+    if (obj_info.objective == OBJECTIVE::JACCARD_HAUSDORFF && (polys1.empty() || polys2.empty())) {
+        std::cerr << "Cannot compute hausdorff distance without polygon references in edge weight computation!" << endl;
+    }
+
+    //in the case of a combined measure, the hausdorff distance needs to be normalized in the end, keep track
+    //of this
+    std::vector<std::pair<detail::edge_desc_impl<undirected_tag,unsigned long>,double>> hausdorff_distances_per_edge;
+    double max_hausdorff_dist = std::numeric_limits<double>::lowest();
+    double min_hausdorff_dist = std::numeric_limits<double>::max();
+
 
     for(const auto& left_v : this->trees[0].vertex_set()) {
         std::vector<int> poly1_ids = this->g[this->corresponding_graph_vertex[0][left_v]].referenced_polys;
@@ -47,7 +59,31 @@ void TreeConstrainedCandidateGraph::computeBipartiteEdges(const MapOverlay& mo, 
                 double IoU = mo.getIoU(poly1_ids,poly2_ids);
                 //add edge to graph
                 auto e = boost::add_edge(this->corresponding_graph_vertex[0][left_v],this->corresponding_graph_vertex[1][right_v],this->g);
-                this->g[e.first].weight = IoU-lambda;
+
+                //next, the edge weight needs to be computed, this depends on the set option for the objective
+                if (obj_info.objective == OBJECTIVE::JACCARD) {
+                    this->g[e.first].weight = IoU-obj_info.lambda;
+                } else if (obj_info.objective == OBJECTIVE::JACCARD_HAUSDORFF) {
+                    //set the weight to the weighted Jaccard index first
+                    this->g[e.first].weight = obj_info.weights.first * IoU;
+
+                    //here, the Hausdorff-distance needs to be computed additionally
+                    //collect relevant polygons
+                    std::vector<const Polygon_wh*> polys1_of_set,polys2_of_set;
+                    for (const auto& id : poly1_ids) polys1_of_set.push_back(&polys1[id]);
+                    for (const auto& id : poly2_ids) polys2_of_set.push_back(&polys2[id]);
+
+                    //we need the inverted hausdorff-distance to actually represent higher <-> better
+                    double hausdorff =  1 / Polygon_wh::hausdorff_distance(polys1_of_set,polys2_of_set);
+                    //remember max and min value for normalization later
+                    if (hausdorff > max_hausdorff_dist) max_hausdorff_dist = hausdorff;
+                    else if (hausdorff < min_hausdorff_dist) min_hausdorff_dist = hausdorff;
+                    //remember the Hausdorff-distance to normalize it in the end
+                    hausdorff_distances_per_edge.emplace_back(e.first,hausdorff);
+                }
+
+
+
                 this->g[e.first].id = this->max_edge_id++;
 
                 //push incident vertices to queue
@@ -58,6 +94,17 @@ void TreeConstrainedCandidateGraph::computeBipartiteEdges(const MapOverlay& mo, 
             }
         }
 
+    }
+
+    //if combined measure is chosen, renormalize and add hausdorff distance to weights
+    if (obj_info.objective == OBJECTIVE::JACCARD_HAUSDORFF) {
+        for (const auto& edge : hausdorff_distances_per_edge) {
+            double normalized_hausdorff = (edge.second - min_hausdorff_dist) / max_hausdorff_dist;
+            this->g[edge.first].weight += obj_info.weights.second * normalized_hausdorff;
+
+            //subtract lambda
+            this->g[edge.first].weight -= obj_info.lambda;
+        }
     }
 
 
@@ -644,7 +691,7 @@ TreeConstrainedCandidateGraph buildTreesFromBiGraph(BiGraph g_bi, CandidateGraph
     }
     //in some cases, one tree might only have one vertex, which should be set to be the root
     cg_tree.setRootsforSingleVertexTrees();
-    cg_tree.computeBipartiteEdges(mo,lambda);
+
     return cg_tree;
 }
 
@@ -940,7 +987,7 @@ TreeConstrainedCandidateGraph buildTreesViaKruskal(const std::vector<Polygon_wh>
         //set map fort second set of polgons
         map = true;
     }
-    cg_tree.computeBipartiteEdges(mo, lambda);
+
     //we will use the centroids of the polygons to determine their closeness
      return cg_tree;
 }

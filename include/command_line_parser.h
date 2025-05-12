@@ -17,6 +17,11 @@ enum class SOLUTION_MODE {
     CANZAR3APPROX
 };
 
+enum class OBJECTIVE {
+    JACCARD,
+    JACCARD_HAUSDORFF,
+};
+
 
 
 //struct to store set command line options
@@ -28,7 +33,10 @@ struct CommandLineOptions {
     bool exploit_opt_props = false;
     TREE_BUILD_MODE tree_mode = TREE_BUILD_MODE::INFORMED; // mode for how the trees are being built
     SOLUTION_MODE mode = SOLUTION_MODE::CANZAR3APPROX; //mode for setting the algorithm to either compute the optimal tree constraint matching or approximate it
-
+    OBJECTIVE objective = OBJECTIVE::JACCARD;
+    // weights for Jaccard-index and Hausdorff-distance, should the combined objective be chosen
+    std::pair<double, double> objective_weights = std::make_pair(0.0, 0.0);
+    int batch_size = 1000; //number of connected sets to be processed until dumping to binary file (higher -> more RAM)
 };
 
 void print_help();

@@ -13,6 +13,7 @@ public:
     // Config setter
     void setTreeMode(std::string treeMode);
     void setSolMode(std::string solMode);
+    void setObjectiveMode(std::string objMode);
     void setExploitMode(bool exploit_opt_props);
 
     // Input setters
@@ -23,6 +24,9 @@ public:
 
     // Runtime setters (expects decomposition, setup, exploit, trees, solving)
     void setTimings(std::vector<double> timings);
+
+    // Memory setter
+    void setMemoryUsage(int mem_usage_kb);
 
     // Output setters
     void setTotalNumMatches(int arcs);
@@ -41,6 +45,7 @@ private:
     //config information
     std::string treeMode;
     std::string solMode;
+    std::string objectiveMode;
     bool exploited_opt_props;
 
     // Input information
@@ -58,6 +63,8 @@ private:
     double solvingOptTime;
     //stores the actual execution time after decomposition (important to measure multithreading improvement)
     double actualExecTime;
+    //store memory usage in kilobyte
+    int memoryUsageKB;
 
     // Output information
     int totalNumMatches;

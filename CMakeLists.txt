@@ -79,6 +79,10 @@ set(sources
         src/binary_io.cpp
         include/polygon_operations.h
         src/polygon_operations.cpp
+        include/polygon_wh.h
+        src/polygon_wh.cpp
+        include/threading.h
+        src/threading.cpp
 )
 
 add_executable(${CMAKE_PROJECT_NAME} ${sources})

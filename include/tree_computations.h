@@ -2,11 +2,14 @@
 #define POLYGONMATCHING_TREE_COMPUTATIONS_H
 
 #include "cgal_includes.h"
+#include "polygon_wh.h"
 #include "localization.h"
 #include "graph_computations.h"
 #include "logger.h"
 
 #include <boost/graph/copy.hpp>
+
+#include "command_line_parser.h"
 
 // Define the edge property to include a weight
 struct BiGraphEdgeProperties {
@@ -35,6 +38,13 @@ typedef boost::graph_traits<Graph>::edge_descriptor BiEdge;
 enum class PathtoRootMode {
     START_AT_VERTEX,
     START_AT_POLYGON_ID
+};
+
+//struct to store objective information
+struct ObjectiveInfo {
+    OBJECTIVE objective = OBJECTIVE::JACCARD;
+    std::pair<double, double> weights = std::make_pair(0.0, 0.0);
+    double lambda = 0.0;
 };
 
 
@@ -213,7 +223,8 @@ public:
 
     //computes the weightes edges in the bipartite graph
     //note that it expects the tree constraints and roots to be defined as those are used
-    void computeBipartiteEdges(const MapOverlay& mo, double lambda);
+    //the polygons are optional arguments, as those are only needed for combined distances, not for the jaccard index
+    void computeBipartiteWeightedEdges(const ObjectiveInfo& obj_info, const MapOverlay& mo, const std::vector<Polygon_wh>& polys1 = {}, const std::vector<Polygon_wh>& polys2 = {});
 
     //adds a vertex to the multilayer graph and returns its index
     int add_vertex(bool ref_map, std::vector<int> ref_polys);

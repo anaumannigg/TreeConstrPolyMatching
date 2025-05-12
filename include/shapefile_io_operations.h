@@ -1,6 +1,7 @@
 #ifndef _shapefile_io_operations_included_
 #define _shapefile_io_operations_included_
 #include "cgal_includes.h"
+#include "polygon_wh.h"
 #include "shapefil.h"
 #include "solution.h"
 #include "polygon_operations.h"

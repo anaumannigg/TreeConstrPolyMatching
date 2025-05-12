@@ -4,40 +4,6 @@
 
 using namespace boost::geometry;
 
-//helper function to find (and try to repair) invalid geometries when reading shapefiles
-bool is_fully_valid_polygon_with_holes(Polygon_wh& poly) {
-
-    //compare every pair of holes and check for intersections
-    for (auto h1 = poly.holes_begin(); h1 != poly.holes_end(); ++h1) {
-        for(auto h2 = h1+1; h2 != poly.holes_end(); ++h2) {
-            if(CGAL::do_intersect(*h1,*h2)) {
-                bool erased_vertex=false;
-                //holes do intersect, check if they have one common point
-                for (auto v1 = h1->vertices_begin(); v1 != h1->vertices_end(); ++v1) {
-                    for (auto v2 = h2->vertices_begin(); v2 != h2->vertices_end(); ){
-                        if(v1 == v2) {
-                            //remove vertex in second polygon
-                            v2 = h2->erase(v2);
-                            erased_vertex=true;
-                        }
-                        else v2++;
-                    }
-                }
-
-                //holes intersect but have no common point, invalid geometry cannot be fixed easily
-                return false;
-
-            }
-        }
-    }
-    //do a final check for validity
-    if (!CGAL::is_valid_polygon_with_holes(poly,Polygon_set_2::Traits_2())) {
-        return false;
-    }
-    //polygon is valid or could be fixed within the function
-    return true;
-}
-
 //reads shapefile and writes polygon information into argument vector
 //argument "filter" indicates, if invalid geometries should be ignored
 //if it is set to true, the function will return the number of disregarded polygons, else 0
@@ -107,8 +73,8 @@ bool ReadShapeFile(const std::string& filename, std::vector<Polygon_wh>& polys, 
                         }
                     }
 
-                    // Ensure the hole is clockwise oriented
-                    if (hole.is_counterclockwise_oriented()) {
+                    // Ensure the hole is counterclockwise oriented
+                    if (!hole.is_counterclockwise_oriented()) {
                         hole.reverse_orientation();
                     }
 
@@ -119,18 +85,10 @@ bool ReadShapeFile(const std::string& filename, std::vector<Polygon_wh>& polys, 
                 // Create the polygon with holes and add it to the vector
                 Polygon_wh poly(outer_boundary, holes.begin(), holes.end());
 
-                //buffer all holes inside for stability (some holes might intersect outer boundary and lead to crashes)
-                PolygonOperations::buffer_holes(poly,-1e-4);
-
                 //if option is set, filter invalid geometries
                 if(ignore_invalid_geometries) {
-                    //try to repair polygon
-                    auto mp_repaired = CGAL::Polygon_repair::repair(poly);
-                    if(CGAL::is_valid_polygon_with_holes(poly,Polygon_set_2::Traits_2())) {
-                        for(const auto& p : mp_repaired.polygons_with_holes()) {
-                            polys.push_back(p);
-                        }
-                    }
+                    //if the polygon is valid, it can be pushed back right away
+                	if (poly.is_valid()) polys.push_back(poly);
                     else num_invalid_geometries++;
                 }
                 else polys.push_back(poly);
@@ -144,6 +102,10 @@ bool ReadShapeFile(const std::string& filename, std::vector<Polygon_wh>& polys, 
 	catch (const std::string& s) {
 		throw s;
 	}
+
+	//after reading all polygons, assign them IDs (due to repairing, some polygons might have been split, so the IDs
+	//cannot be assigned before
+	for (int i=0;i<polys.size();i++) polys[i].global_id = i;
 
     return num_invalid_geometries;
 

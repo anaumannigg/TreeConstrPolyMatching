@@ -5,11 +5,12 @@
 #include <assert.h>
 
 #include <iostream>
+#include <filesystem>
 
 // Constructor
 Logger::Logger(const std::string& filePath) :
         filePath(filePath), inputPolygons1(0), inputPolygons2(0), connectedComponents(0), lambda(0.0),
-        decompTime(0.0),solvingSetupTime(0.0),solvingExploitTime(0.0),solvingOptTime(0.0), actualExecTime(0.0),
+        decompTime(0.0),solvingSetupTime(0.0),solvingExploitTime(0.0),solvingOptTime(0.0), actualExecTime(0.0), memoryUsageKB(0),
         totalNumMatches(0), totalNum1to1(0), totalNum1toN(0), totalNumMtoN(0), objective(0.0)
         {
     initializeFile();
@@ -17,11 +18,24 @@ Logger::Logger(const std::string& filePath) :
 
 // Private method to add headers to the file if it is empty
 void Logger::initializeFile() {
-    if (std::ifstream infile(filePath); infile.peek() == std::ifstream::traits_type::eof()) {
-        infile.close();
+    // Check if the directory exists, and create it if it doesn't
+    std::filesystem::path fileDir = std::filesystem::path(filePath).parent_path();
+
+    if (!std::filesystem::exists(fileDir)) {
+        if (!std::filesystem::create_directories(fileDir)) {
+            std::cerr << "Error creating directory for logging: " << fileDir << std::endl;
+            return;
+        }
+    }
+
+    if (!std::filesystem::exists(filePath) || std::filesystem::file_size(filePath) == 0) {
         std::ofstream outfile(filePath, std::ios::app);
-        outfile << "InstanceName,TreeMode,SolMode,OptPropExploit,polygons1,polygons2,ConnectedComponents,Lambda,"
-                << "DecompTime,SetupTime,ExploitTime,TreeBuildTime,OptTime,ExecTime,TotalMatches,TotalUnmatched,Total1to1,Total1toN,TotalMtoN,Obj1to1, Obj1toN,ObjMtoN, Objective"
+        if (!outfile) {  // Check if the file was successfully opened
+            std::cerr << "Error initializing log file: " << filePath << std::endl;
+        }
+        outfile << "InstanceName,TreeMode,SolMode,ObjectiveMode,OptPropExploit,polygons1,polygons2,ConnectedComponents,Lambda,"
+                << "DecompTime,SetupTime,ExploitTime,TreeBuildTime,OptTime,ExecTime,PeakMemoryUsed,TotalMatches,"
+                << "TotalUnmatched,Total1to1,Total1toN,TotalMtoN,Obj1to1,Obj1toN,ObjMtoN,Objective"
                 << std::endl;
         outfile.close();
     }
@@ -33,6 +47,10 @@ void Logger::setTreeMode(std::string treeMode) {
 
 void Logger::setSolMode(std::string solMode) {
     this->solMode = solMode;
+}
+
+void Logger::setObjectiveMode(std::string objMode) {
+  this->objectiveMode = objMode;
 }
 
 void Logger::setExploitMode(bool exploit_opt_props) {
@@ -68,6 +86,10 @@ void Logger::setTimings(std::vector<double> timings) {
     actualExecTime = timings[5];
 }
 
+void Logger::setMemoryUsage(int mem_usage_kb) {
+    this->memoryUsageKB = mem_usage_kb;
+}
+
 // Output setters
 void Logger::setTotalNumMatches(int arcs) {
     totalNumMatches = arcs;
@@ -98,6 +120,7 @@ void Logger::log() {
     outfile << instanceName << ","
             << treeMode << ","
             << solMode << ","
+            << objectiveMode << ","
             << exploited_opt_props << ","
             << inputPolygons1 << ","
             << inputPolygons2 << ","
@@ -111,6 +134,7 @@ void Logger::log() {
             << solvingTreeTime << ","
             << solvingOptTime << ","
             << actualExecTime << ","
+            << memoryUsageKB << ","
             << totalNumMatches << ","
             << totalNumUnmatched << ","
             << totalNum1to1 << ","
@@ -133,6 +157,7 @@ void Logger::reset() {
     instanceName.clear();
     treeMode.clear();
     solMode.clear();
+    objectiveMode.clear();
     lambda = 0.0;
     decompTime = 0.0;
     solvingSetupTime = 0.0;
@@ -140,6 +165,7 @@ void Logger::reset() {
     solvingTreeTime = 0.0;
     solvingOptTime = 0.0;
     actualExecTime = 0.0;
+    memoryUsageKB = 0;
     totalNumMatches = 0;
     totalNumUnmatched = 0;
     totalNum1to1 = 0;

@@ -11,6 +11,7 @@ void print_help() {
               << "                       The code expects it to be located in 'input/dataset_name'.\n"
               << "  -l lambda            Specify the parameter for lambda.\n"
               << "  XOR -lr lambda_range Specify multiple values for lambda as START_VALUE STEP_SIZE END_VALUE.\n"
+              << "  -o                   (optional, default is jaccard) Specify the objective used for the matching (jaccard,jaccard-hd with two respective weights)."
               << "  -s                   (optional, default is off) Activates making use of the Lemmas of optimal solutions w.r.t. Jaccard Index as Preprocessing.\n"
               << "  -t threads           (optional, default 1) Specify the number of threads that will be used for computations on connected components.\n"
               << "  -r tRee_mode         (optional, default informed) Set the mode describing, how the trees are built (informed,kruskal).\n"
@@ -57,8 +58,30 @@ CommandLineOptions parse_command_line(int argc, char* argv[]) {
                 options.mode = SOLUTION_MODE::CANZAR3APPROX;
             }
             else {
-                throw std::invalid_argument("Unknown mode: " + arg + "! Use opt, 2approx, 3approx.");
+                throw std::invalid_argument("Unknown mode: " + mode_str + "! Use opt, 2approx, 3approx.");
             }
+        } else if (arg == "-o" & i+1 < argc) {
+            std::string obj_str = argv[++i];
+            //transform to lower case for robustness
+            std::transform(obj_str.begin(),obj_str.end(), obj_str.begin(),
+                           [](unsigned char c){return std::tolower(c);});
+            if (obj_str == "jaccard") {
+                options.objective = OBJECTIVE::JACCARD;
+
+            } else if (obj_str == "jaccard-hd") {
+                options.objective = OBJECTIVE::JACCARD_HAUSDORFF;
+                if (i + 2 < argc) {
+                    double weight_jac = atof(argv[++i]);
+                    double weight_hd = atof(argv[++i]);
+                    options.objective_weights = std::make_pair(weight_jac, weight_hd);
+                } else {
+                    throw std::invalid_argument("No weights provided for multicriterial objective!");
+                }
+            }
+            else {
+                throw std::invalid_argument("Unknown objective: " + obj_str + "! Use jaccard, jaccard-hd (weight_jac weight_hd)");
+            }
+
         } else if (arg == "-r" & i+1 < argc) {
             //transform to lower case for robustness
             std::string mode_str = argv[++i];

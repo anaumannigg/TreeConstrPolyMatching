@@ -2,6 +2,7 @@
 #define _localization_included_
 
 #include "cgal_includes.h"
+#include "polygon_wh.h"
 #include "shapefile_io_operations.h"
 
 //for r-tree
@@ -25,28 +26,28 @@ class Localization {
 	//r tree for fast collection of polygons to check
 	bgi::rtree<Value_rtree, bgi::quadratic<16>> rtree;
 	//polys
-	std::vector<Polygon_wh> polys;
+	std::vector<Polygon_wh>& polys;
 
 public:
-	Localization(std::vector<Polygon_wh> polys);
-	bool get_neighbors(Polygon_wh p, std::vector<Polygon_wh>* neighbors) const;
-    bool get_neighbors(Polygon_wh p, std::vector<int>* neighbors) const;
-    bool get_neighbors(Polygon p, std::vector<int>* neighbors) const;
-    bool get_neighbors(Point p, std::vector<int>* neighbors, bool consider_holes = true) const;
-    bool get_neighbors(Segment p, std::vector<int>* neighbors) const;
-    bool get_neighbors(Polygon_wh p, std::vector<int>* neighbors, double neighboring_threshold) const;
-    bool get_neighbors(Polygon_wh p, int p_index, bool p_map, std::vector<int>* neighbors, double neighboring_threshold, MapOverlay mo) const;
+	Localization(std::vector<Polygon_wh>& polys);
+	bool get_neighbors(const Polygon_wh& p, std::vector<Polygon_wh>* neighbors) const;
+    bool get_neighbors(const Polygon_wh& p, std::vector<int>* neighbors) const;
+    bool get_neighbors(const Polygon& p, std::vector<int>* neighbors) const;
+    bool get_neighbors(const Point& p, std::vector<int>* neighbors, bool consider_holes = true) const;
+    bool get_neighbors(const Segment& p, std::vector<int>* neighbors) const;
+    bool get_neighbors(const Polygon_wh& p, std::vector<int>* neighbors, double neighboring_threshold) const;
+    bool get_neighbors(const Polygon_wh& p, int p_index, bool p_map, std::vector<int>* neighbors, double neighboring_threshold, MapOverlay mo) const;
 	//writes all neighbors into the neighbors vector, for which the input polygon p lies entirely within them, returns true if neighbors have been found, else false
-    bool get_neighbors_fully_included(Polygon_wh p, std::vector<int>* neighbors) const;
+    bool get_neighbors_fully_included(const Polygon_wh& p, std::vector<int>* neighbors) const;
 	//returns all neighbors n, where I(p,n) / min(area(p),area(n)) > inclusion_threshold
-    bool get_neighbors_majorly_included(Polygon_wh p, std::vector<int>* neighbors, double inclusion_threshold) const;
+    bool get_neighbors_majorly_included(const Polygon_wh& p, std::vector<int>* neighbors, double inclusion_threshold) const;
 	//returns all neighbors n, where at least inclusion_threshold [0,1] of the area of n is included in query poly p
-    bool get_neighbors_with_minimum_intersection_proportion(Polygon_wh p, std::vector<int>* neighbors, double inclusion_threshold) const;
-    bool are_adjacent(Polygon_wh polyA, int polyB_index) const;
-    std::vector<Value_rtree> query(Box_rtree query_box) const;
+    bool get_neighbors_with_minimum_intersection_proportion(const Polygon_wh& p, std::vector<int>* neighbors, double inclusion_threshold) const;
+    bool are_adjacent(const Polygon_wh& polyA, int polyB_index) const;
+    std::vector<Value_rtree> query(const Box_rtree& query_box) const;
 
 private:
-	std::vector<Value_rtree> query(Box_rtree query_box);
+	std::vector<Value_rtree> query(const Box_rtree& query_box);
 };
 
 //class to create and store and arrangement of all polygons to reduce computation effort of area computations in intersection over union

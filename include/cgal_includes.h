@@ -71,7 +71,7 @@ typedef K::Point_2                              Point;
 typedef K::Segment_2                            Segment;
 typedef K::Line_2                               Line;
 typedef K::Vector_2                             Vector;
-typedef CGAL::Polygon_with_holes_2<K>           Polygon_wh;
+typedef CGAL::Polygon_with_holes_2<K>           CGAL_Polygon_wh;
 typedef CGAL::Polygon_2<K>                      Polygon;
 //typedef CGAL::Polygon_with_holes_2<K>			Polygon_wh;
 //typedef CGAL::General_polygon_with_holes_2<K>	General_Polygon_wh_2;
